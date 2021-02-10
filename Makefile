@@ -4,11 +4,12 @@ GO_CMDS := $(shell  find ./cmd -maxdepth 1 -mindepth 1 -type d)
 GO_RUNS := $(patsubst ./cmd/%,run/%,$(GO_CMDS))
 GO_BUILDS := $(patsubst ./cmd/%,bin/%,$(GO_CMDS))
 GO_TESTS := $(patsubst ./%,test/%,$(GO_DIRS))
+INSTALL_DIR ?= $(HOME)/bin
 
 bin/%: $(GO_FILES)
 	go build -o $@ ./cmd/$*/...
 
-.PHONY: all $(GO_RUNS) test $(GO_TESTS) build clean
+.PHONY: all $(GO_RUNS) test $(GO_TESTS) build clean install
 
 all: test bin
 
@@ -27,3 +28,6 @@ clean:
 	-rm $(GO_BUILDS)
 	go clean -testcache
 	go clean -cache
+
+install: bin
+	cp $(GO_BUILDS) $(INSTALL_DIR)
