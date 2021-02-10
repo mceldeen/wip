@@ -40,13 +40,7 @@ func main() {
 			os.Exit(-1)
 		}
 	}
-	items := wip.Items()
-	for i, item := range items {
-		fmt.Printf("%d: %s\n", i, item)
-	}
-	if len(items) == 0 {
-		fmt.Println("no WIP")
-	}
+	fmt.Print(wip.Show())
 	if os.Getenv("WIP_TIMING") == "true" {
 		diff := time.Now().Sub(start)
 		fmt.Println("done in", diff)
@@ -95,7 +89,7 @@ func (wip *WIP) Focus(index uint) error {
 	return wip.writeOp(op)
 }
 
-func (wip *WIP) Items() []Item {
+func (wip *WIP) items() []Item {
 	var reverseItems []Item
 	for _, op := range wip.ops {
 		reverseItems = op.Payload.Apply(reverseItems)
@@ -105,6 +99,18 @@ func (wip *WIP) Items() []Item {
 		items[len(items)-1-i] = reverseItems[i]
 	}
 	return items
+}
+
+func (wip *WIP) Show() string {
+	var builder strings.Builder
+	items := wip.items()
+	for i, item := range items {
+		builder.WriteString(fmt.Sprintf("%d: %s\n", len(items)-1-i, item))
+	}
+	if len(items) == 0 {
+		builder.WriteString("no WIP\n")
+	}
+	return builder.String()
 }
 
 func (wip *WIP) writeOp(op *Op) error {
@@ -255,6 +261,9 @@ func (p *PopApplier) Type() string {
 }
 
 func (p *PopApplier) Apply(items []Item) []Item {
+	if len(items) == 0 {
+		return items
+	}
 	return items[:len(items)-1]
 }
 
@@ -278,7 +287,7 @@ func (p *FocusApplier) Apply(items []Item) []Item {
 
 func (p *FocusApplier) UnmarshalJSON(bytes []byte) error {
 	var i uint
-	if err := json.Unmarshal(bytes, i); err != nil {
+	if err := json.Unmarshal(bytes, &i); err != nil {
 		return err
 	}
 	*p = FocusApplier(i)
