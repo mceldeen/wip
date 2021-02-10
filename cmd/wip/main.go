@@ -16,7 +16,11 @@ import (
 func main() {
 	start := time.Now()
 	args := os.Args[1:]
-	wip, err := NewWIP(filepath.Join(os.Getenv("HOME"), ".wip"))
+	filename := os.Getenv("WIP_FILENAME")
+	if filename == "" {
+		filename = filepath.Join(os.Getenv("HOME"), ".wip")
+	}
+	wip, err := NewWIP(filename)
 	if err != nil {
 		fmt.Printf("error: %s\n", err.Error())
 		os.Exit(-1)
