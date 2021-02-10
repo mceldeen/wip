@@ -3,17 +3,23 @@ GO_DIRS :=  $(shell find . -type f -name '*.go' | sed -r 's|/[^/]+$$||' | sort -
 GO_CMDS := $(shell  find ./cmd -maxdepth 1 -mindepth 1 -type d)
 GO_RUNS := $(patsubst ./cmd/%,run/%,$(GO_CMDS))
 GO_BUILDS := $(patsubst ./cmd/%,bin/%,$(GO_CMDS))
+GO_RELEASE_BUILDS := $(patsubst ./cmd/%,bin/%-release,$(GO_CMDS))
 GO_TESTS := $(patsubst ./%,test/%,$(GO_DIRS))
 INSTALL_DIR ?= $(HOME)/bin
+
+bin/%-release:
+	go build -ldflags '-w' -o $@ ./cmd/$*/...
 
 bin/%: $(GO_FILES)
 	go build -o $@ ./cmd/$*/...
 
-.PHONY: all $(GO_RUNS) test $(GO_TESTS) build clean install
+.PHONY: all $(GO_RUNS) test $(GO_TESTS) build clean install bin bin-release
 
-all: test bin
+all: test bin bin-release
 
 bin: $(GO_BUILDS)
+
+bin-release: $(GO_RELEASE_BUILDS)
 
 $(GO_RUNS): # format run/<NAME OF COMMAND>
 	go run ./cmd/$(patsubst run/%,%,$@)/... "$(ARGS)"
