@@ -1,39 +1,28 @@
-GO_FILES := $(shell find . -type f -name '*.go')
-GO_DIRS :=  $(shell find . -type f -name '*.go' | sed -r 's|/[^/]+$$||' | sort -u)
-GO_CMDS := $(shell  find ./cmd -maxdepth 1 -mindepth 1 -type d)
-GO_RUNS := $(patsubst ./cmd/%,run/%,$(GO_CMDS))
-GO_BUILDS := $(patsubst ./cmd/%,bin/%,$(GO_CMDS))
-GO_RELEASE_BUILDS := $(patsubst ./cmd/%,bin/%-release,$(GO_CMDS))
-GO_TESTS := $(patsubst ./%,test/%,$(GO_DIRS))
-INSTALL_DIR ?= $(HOME)/bin
+GCC_OPTIONS?=-Wextra -Wall -Wpedantic -Werror
 
-bin/%-release:
-	go build -ldflags '-w' -o $@ ./cmd/$*/...
+.PHONY: all clean
 
-bin/%: $(GO_FILES)
-	go build -o $@ ./cmd/$*/...
-
-.PHONY: all $(GO_RUNS) test $(GO_TESTS) build clean install bin bin-release
-
-all: test bin bin-release
-
-bin: $(GO_BUILDS)
-
-bin-release: $(GO_RELEASE_BUILDS)
-
-$(GO_RUNS): # format run/<NAME OF COMMAND>
-	go run ./cmd/$(patsubst run/%,%,$@)/... "$(ARGS)"
-
-test: $(GO_FILES)
-	go test ./...
-
-$(GO_TESTS): # format test/<FILE PATH TO PACKAGE>
-	go test ./$(patsubst test/%,%,$@)/...
+all: build/debug build/release
 
 clean:
-	-rm $(GO_BUILDS)
-	go clean -testcache
-	go clean -cache
+	rm -rf build
 
-install: bin
-	cp $(GO_BUILDS) $(INSTALL_DIR)
+build/release/%.o: %.c
+	mkdir -p build/release
+	gcc $(GCC_OPTIONS) -O3 -o $@ -c $<
+
+build/debug/%.o: %.c
+	mkdir -p build/debug
+	gcc $(GCC_OPTIONS) -o $@ -c $<
+
+build/debug: build/debug/wip
+
+build/release: build/release/wip
+
+build/debug/wip: build/debug/main.o build/debug/cJSON.o build/debug/iso8601.o build/debug/op.o build/debug/op_vector.o
+	mkdir -p build/debug
+	gcc $(GCC_OPTIONS) -o build/debug/wip $^
+
+build/release/wip: build/release/main.o build/release/cJSON.o build/release/iso8601.o build/release/op.o build/release/op_vector.o
+	mkdir -p build/release
+	gcc $(GCC_OPTIONS) -O3 -o build/release/wip $^
