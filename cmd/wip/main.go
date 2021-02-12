@@ -107,9 +107,9 @@ func (wip *WIP) Show() string {
 		builder.WriteString("no WIP\n")
 	}
 	for len(items) > 0 {
-		item := items[len(items) - 1]
-		builder.WriteString(fmt.Sprintf("%d: %s\n", len(items) - 1, item))
-		items = items[:len(items) - 1]
+		item := items[len(items)-1]
+		builder.WriteString(fmt.Sprintf("%d: %s\n", len(items)-1, item))
+		items = items[:len(items)-1]
 	}
 	return builder.String()
 }
@@ -150,32 +150,10 @@ func readOps(file *os.File) ([]*Op, error) {
 	return ops, nil
 }
 
-type ISO8601 time.Time
-
-const ISO8601Format = "2006-01-02T15:04:05-0700"
-
-func (t *ISO8601) UnmarshalJSON(bytes []byte) error {
-	var rawString string
-	err := json.Unmarshal(bytes, &rawString)
-	if err != nil {
-		return err
-	}
-	raw, err := time.Parse(ISO8601Format, rawString)
-	if err != nil {
-		return err
-	}
-	*t = ISO8601(raw)
-	return nil
-}
-
-func (t *ISO8601) MarshalJSON() ([]byte, error) {
-	return json.Marshal(time.Time(*t).Format(ISO8601Format))
-}
-
 type Op struct {
 	Type       string  `json:"type"`
-	OccurredAt ISO8601 `json:"occurred_at"`
-	Payload    Applier `json:"payload,omitempty"`
+	OccurredAt string  `json:"occurred_at"`
+	Payload    Payload `json:"payload,omitempty"`
 }
 
 func (o *Op) MarshalJSON() ([]byte, error) {
@@ -196,19 +174,21 @@ func (o *Op) MarshalJSON() ([]byte, error) {
 
 type jsonOp struct {
 	Type       string          `json:"type"`
-	OccurredAt ISO8601         `json:"occurred_at"`
+	OccurredAt string          `json:"occurred_at"`
 	Payload    json.RawMessage `json:"payload,omitempty"`
 }
 
-func NewOp(applier Applier, occurredAt time.Time) *Op {
+const ISO8601Format = "2006-01-02T15:04:05-0700"
+
+func NewOp(applier Payload, occurredAt time.Time) *Op {
 	return &Op{
 		Type:       applier.Type(),
-		OccurredAt: ISO8601(occurredAt),
+		OccurredAt: occurredAt.Format(ISO8601Format),
 		Payload:    applier,
 	}
 }
 
-var knownAppliers = map[string]func(message json.RawMessage) (Applier, error){}
+var knownPayloads = map[string]func(payload json.RawMessage) (Payload, error){}
 
 func (o *Op) UnmarshalJSON(bytes []byte) error {
 	var jOp jsonOp
@@ -218,11 +198,11 @@ func (o *Op) UnmarshalJSON(bytes []byte) error {
 	}
 	o.Type = jOp.Type
 	o.OccurredAt = jOp.OccurredAt
-	mkApplier, ok := knownAppliers[jOp.Type]
+	mkPayload, ok := knownPayloads[jOp.Type]
 	if !ok {
 		return fmt.Errorf("unrecognized operation %s", o.Type)
 	}
-	o.Payload, err = mkApplier(jOp.Payload)
+	o.Payload, err = mkPayload(jOp.Payload)
 	if err != nil {
 		return err
 	}
@@ -230,7 +210,7 @@ func (o *Op) UnmarshalJSON(bytes []byte) error {
 }
 
 func init() {
-	knownAppliers["Push"] = func(message json.RawMessage) (Applier, error) {
+	knownPayloads["Push"] = func(message json.RawMessage) (Payload, error) {
 		var applier PushApplier
 		if err := json.Unmarshal(message, &applier); err != nil {
 			fmt.Println("in push")
@@ -238,11 +218,11 @@ func init() {
 		}
 		return &applier, nil
 	}
-	knownAppliers["Pop"] = func(message json.RawMessage) (Applier, error) {
+	knownPayloads["Pop"] = func(message json.RawMessage) (Payload, error) {
 		var applier PopApplier
 		return &applier, nil
 	}
-	knownAppliers["Focus"] = func(message json.RawMessage) (Applier, error) {
+	knownPayloads["Focus"] = func(message json.RawMessage) (Payload, error) {
 		var applier FocusApplier
 		if err := json.Unmarshal(message, &applier); err != nil {
 			fmt.Println("in focus")
@@ -252,7 +232,7 @@ func init() {
 	}
 }
 
-type Applier interface {
+type Payload interface {
 	Type() string
 	Apply([]Item) []Item
 	json.Unmarshaler
