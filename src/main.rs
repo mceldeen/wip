@@ -8,7 +8,7 @@ use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::{Path, PathBuf};
 use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Local};
+use chrono::Local;
 use std::time::Instant;
 use std::env::VarError;
 use std::result::Result;
@@ -161,21 +161,21 @@ impl WIP {
 
   pub fn push(&self, item: Item) -> io::Result<()> {
     self.write_op(Op {
-      occurred_at: Local::now(),
+      occurred_at: Local::now().to_rfc3339(),
       payload: Payload::Push(item),
     })
   }
 
   pub fn pop(&self) -> io::Result<()> {
     self.write_op(Op {
-      occurred_at: Local::now(),
+      occurred_at: Local::now().to_rfc3339(),
       payload: Payload::Pop,
     })
   }
 
   pub fn focus(&self, index: u64) -> io::Result<()> {
     self.write_op(Op {
-      occurred_at: Local::now(),
+      occurred_at: Local::now().to_rfc3339(),
       payload: Payload::Focus(index),
     })
   }
@@ -224,8 +224,7 @@ impl Item {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Op {
-  #[serde(with = "iso8601")]
-  pub occurred_at: DateTime<Local>,
+  pub occurred_at: String,
 
   #[serde(flatten)]
   pub payload: Payload,
@@ -234,32 +233,6 @@ struct Op {
 impl Op {
   fn apply(self, items: Vec<Item>) -> Vec<Item> {
     self.payload.apply(items)
-  }
-}
-
-mod iso8601 {
-  use chrono::{DateTime, TimeZone, Local};
-  use serde::{self, Deserialize, Serializer, Deserializer};
-
-  const FORMAT: &'static str = "%FT%T%z";
-
-  pub fn serialize<S>(
-    date: &DateTime<Local>,
-    serializer: S,
-  ) -> Result<S::Ok, S::Error>
-    where S: Serializer
-  {
-    let s = format!("{}", date.format(FORMAT));
-    serializer.serialize_str(&s)
-  }
-
-  pub fn deserialize<'de, D>(
-    deserializer: D,
-  ) -> Result<DateTime<Local>, D::Error>
-    where D: Deserializer<'de>
-  {
-    let s = String::deserialize(deserializer)?;
-    Local.datetime_from_str(&s, FORMAT).map_err(serde::de::Error::custom)
   }
 }
 
