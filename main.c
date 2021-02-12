@@ -6,6 +6,7 @@
 #include "cJSON.h"
 #include "op.h"
 #include "op_vector.h"
+#include "buf_rdr.h"
 
 const char *default_wip_file = ".wip";
 
@@ -57,22 +58,36 @@ OpVector *read_ops(const char* wip_filename) {
         exit(EXIT_FAILURE);
     }
     char *line = NULL;
-    size_t len = 0;
-    ssize_t read;
-    OpVector *ops = OpVector_New(1);
-    while ((read = getline(&line, &len, fp)) != -1) {
+    size_t read;
+    BufRdr *buf_rdr = BufRdr_New(fp, 1024);
+    OpVector *ops = OpVector_New(512);
+    clock_t json_parsing = 0;
+    clock_t file_reading = 0;
+    clock_t op_parsing = 0;
+    clock_t start = clock();
+    while ((read = BufRdr_ReadLine(buf_rdr, &line)) > 0) {
+        file_reading += clock() - start;
+        start = clock();
         cJSON *json = cJSON_ParseWithLength(line, read);
+        json_parsing += clock() - start;
+        start = clock();
         Op *op = Op_New();
         if (!Op_Parse(json, op)) {
             printf("parsing op failed: %s", cJSON_Print(json));
             exit(EXIT_FAILURE);
         }
+        op_parsing += clock() - start;
         ops = OpVector_Push(op, ops);
         cJSON_Delete(json);
+        start = clock();
     }
+    printf("json parsing: %lu\n", json_parsing);
+    printf("file reading: %lu\n", file_reading);
+    printf("op parsing: %lu\n", op_parsing);
     fclose(fp);
     if (line) {
         free(line);
     }
+    BufRdr_Free(buf_rdr);
     return ops;
 }

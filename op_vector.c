@@ -1,3 +1,4 @@
+#include "stdio.h"
 #include <stdlib.h>
 #include <string.h>
 #include "op.h"
@@ -5,7 +6,7 @@
 
 OpVector *OpVector_New(size_t cap) {
     OpVector *op_vector = malloc(sizeof(OpVector));
-    memset(op_vector, 0, sizeof(OpVector));
+    op_vector->len = 0;
     op_vector->cap = cap;
     op_vector->data = malloc(sizeof(Op *) * cap);
     return op_vector;
@@ -35,14 +36,13 @@ void OpVector_Free(OpVector *op_vector) {
 }
 
 OpVector *OpVector_Push(Op *op, OpVector *op_vector) {
-    if (op_vector->len + 1 > op_vector->cap) {
-        OpVector *next_op_vector = OpVector_New(op_vector->cap << 1);
+    if (op_vector->len == op_vector->cap) {
+        OpVector *next_op_vector = OpVector_New(op_vector->cap + (op_vector->cap >> 1));
         next_op_vector->len = op_vector->len;
         memcpy(next_op_vector->data, op_vector->data, op_vector->len * sizeof(Op *));
         OpVector_Free(op_vector);
         op_vector = next_op_vector;
     }
-    op_vector->data[op_vector->len] = op;
-    op_vector->len++;
+    op_vector->data[op_vector->len++] = op;
     return op_vector;
 }

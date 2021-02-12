@@ -4,8 +4,15 @@
 #include "iso8601.h"
 #include "op.h"
 
+Op *Op_New() {
+    Op *op = malloc(sizeof(Op));
+    op->type = Op_Unknown;
+    op->occurred_at_tm = malloc(sizeof(struct tm));
+    return op;
+}
+
 void Op_Free(Op *op) {
-    if (op->payload.push_data.value != NULL) {
+    if (op->type == Op_Push && op->payload.push_data.value != NULL) {
         free(op->payload.push_data.value);
         op->payload.push_data.value = NULL;
     }
@@ -16,40 +23,32 @@ void Op_Free(Op *op) {
     free(op);
 }
 
-Op *Op_New() {
-    Op *op = malloc(sizeof(Op));
-    memset(op, 0, sizeof(Op));
-    op->occurred_at_tm = malloc(sizeof(struct tm));
-    memset(op->occurred_at_tm, 0, sizeof(struct tm));
-    return op;
-}
-
 bool Op_Parse(cJSON *json, Op *op) {
     if (!cJSON_IsObject(json)) {
         return false;
     }
 
-    const cJSON *type = cJSON_GetObjectItemCaseSensitive(json, "type");
-    if (!cJSON_IsString(type) || type->valuestring == NULL) {
+    const char *type = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(json, "type"));
+    if (type == NULL) {
         return false;
     }
 
-    if (strcmp(type->valuestring, "Push") == 0) {
+    if (strcmp(type, "Push") == 0) {
         op->type = Op_Push;
-    } else if (strcmp(type->valuestring, "Pop") == 0) {
+    } else if (strcmp(type, "Pop") == 0) {
         op->type = Op_Pop;
-    } else if (strcmp(type->valuestring, "Pop") == 0) {
+    } else if (strcmp(type, "Focus") == 0) {
         op->type = Op_Focus;
     } else {
         return false;
     }
 
-    const cJSON *occurred_at = cJSON_GetObjectItemCaseSensitive(json, "occurred_at");
-    if (!cJSON_IsString(occurred_at) || occurred_at->valuestring == NULL) {
+    const char *occurred_at = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(json, "occurred_at"));
+    if (occurred_at == NULL) {
         return false;
     }
 
-    if (!ParseIso8601Datetime(occurred_at->valuestring, op->occurred_at_tm, NULL)) {
+    if (!ParseIso8601Datetime(occurred_at, op->occurred_at_tm, NULL)) {
         return false;
     }
 
