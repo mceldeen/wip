@@ -12,8 +12,7 @@
 
 typedef struct Op {
     int type;
-    struct tm *occurred_at_tm;
-    int occurred_at_tz_min;
+    char *occurred_at;
     union Payload {
         struct PushData {
             size_t len;

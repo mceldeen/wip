@@ -7,7 +7,8 @@
 Op *Op_New() {
     Op *op = malloc(sizeof(Op));
     op->type = Op_Unknown;
-    op->occurred_at_tm = malloc(sizeof(struct tm));
+    op->occurred_at = NULL;
+    memset(&op->payload, 0, sizeof(union Payload));
     return op;
 }
 
@@ -16,9 +17,9 @@ void Op_Free(Op *op) {
         free(op->payload.push_data.value);
         op->payload.push_data.value = NULL;
     }
-    if (op->occurred_at_tm != NULL) {
-        free(op->occurred_at_tm);
-        op->occurred_at_tm = NULL;
+    if (op->occurred_at != NULL) {
+        free(op->occurred_at);
+        op->occurred_at = NULL;
     }
     free(op);
 }
@@ -47,10 +48,8 @@ bool Op_Parse(cJSON *json, Op *op) {
     if (occurred_at == NULL) {
         return false;
     }
-
-    if (!ParseIso8601Datetime(occurred_at, op->occurred_at_tm, NULL)) {
-        return false;
-    }
+    op->occurred_at = malloc(strlen(occurred_at));
+    memcpy(op->occurred_at, occurred_at, strlen(occurred_at));
 
     const cJSON *payload = cJSON_GetObjectItemCaseSensitive(json, "payload");
     if (op->type == Op_Push) {
